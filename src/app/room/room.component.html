@@ -1,0 +1,52 @@
+<!--
+ * @Descripttion: 
+ * @version: 1.0
+ * @Author: icxl
+ * @Date: 2021-07-03 22:15:24
+ * @LastEditors: icxl
+ * @LastEditTime: 2021-07-07 17:21:56
+-->
+<div>
+  <!-- <div id="selfDevices">
+    <h1>自己名称：{{currentUserId}}</h1>
+    <h1>房间id:{{roomId}}</h1>
+  </div> -->
+
+  <div id="participants-area">
+    <audio id="audio-remote" *ngIf="remoteIsShow"></audio>
+  </div>
+
+
+ 
+
+  <video id="player"  controls crossorigin playsinline poster="https://bitdash-a.akamaihd.net/content/sintel/poster.png">
+  </video>
+
+  <span>{{currentRoom?.numParticipants==0?"连接中...":"房间人数"+currentRoom?.numParticipants}}</span>
+
+  <button (click)="mutedAudio()"  type="button">
+    {{isMuted ? '取消静音' : '静音'}}
+  </button>
+<!-- 
+  <button (click)="pushData('测试消息')"  type="button">
+    发送
+  </button> -->
+
+  
+  <button (click)="switchUrl('https://baidu.sd-play.com/20230905/uyAUfYk5/index.m3u8')"  type="button">
+    切换url
+  </button>
+
+
+  <span>
+    {{roomMetaData | json}}
+  </span>
+    
+  <button (click)="testFunc()"  type="button">
+    测试
+  </button>
+
+  <button (click)="testFunc2()"  type="button">
+    测试2
+  </button>
+</div>
