@@ -63,6 +63,7 @@ export class RoomComponent implements OnInit {
   roomId: string | undefined;
   serverHttp:string | undefined;
   wssToken:string | undefined;
+  remoteSeek:number|undefined;
   wssServerAddress:string;
   startTime:number | undefined;
   currentRoom:Room | undefined;
@@ -141,9 +142,60 @@ testFunc(){
 }
 
 testFunc2(){
-  var roomPlayStatus = this.getIsPlayStatus();
-  console.log("testFunc2:"+roomPlayStatus);
+  // var roomPlayStatus = this.getIsPlayStatus();
+  // console.log("testFunc2:"+roomPlayStatus);
+
+
+  var time = this.getDuiFangTime();
+
+  console.log(time);
+  // this.plyr!.currentTime = 500;
+  // this.pushData("1231231").subscribe(x=>{
+
+  // });
 }
+
+getCurrentPlayTime(){
+  return this.plyr!.currentTime;
+}
+
+setCurrentPlayTime(time:number){
+  this.plyr!.currentTime = time;
+}
+
+EventHanld(eventType :PlayerEvent,args:any){
+
+  switch(eventType)
+  {
+    case PlayerEvent.SyncProgress:
+      var time = args;
+      this.setCurrentPlayTime(time);
+      this.plyr?.stop();
+    break;
+
+    case PlayerEvent.paly:
+      this.plyr?.play();
+    break;
+
+    case PlayerEvent.stop:
+      this.plyr?.stop();
+    break;
+
+    case PlayerEvent.seeked:
+      var time = args;
+      this.setCurrentPlayTime(time);
+      this.plyr?.stop();
+    break;
+
+    case PlayerEvent.switchUrl:
+      var url = args;
+      this.loadVideoData(url);
+      this.plyr?.stop();
+    break;
+  }
+
+}
+
 
 //获取房间是否可播放
 getIsPlayStatus(){
@@ -204,6 +256,65 @@ return this.updateRoomMetaData();
 }
 
 
+
+getDuiFangTime(){
+  var count = this.currentRoom?.numParticipants;
+
+  if(count==2){
+    var isNotExister = this.roomMetaData?.playTimes==undefined;
+
+
+    if(isNotExister){
+      return -1;
+    }
+    else{
+      var arrs = (<any[]>this.roomMetaData.playTimes);
+      for (let index = 0; index < arrs.length; index++) {
+        const element = arrs[index];
+
+        if(element.userId!=this.currentUserId){
+          return element.val;
+        }
+      }
+    }
+
+  }else{
+    //一个人随便播
+    return -1;
+  }
+
+  return -1;
+
+}
+uploadPlayTime(){
+  var isNotExister = this.roomMetaData?.playTimes==undefined || this.roomMetaData.playTimes.length==0;
+  
+  if(isNotExister){
+    this.roomMetaData.playTimes = [{userId:this.currentUserId,val:this.plyr?.currentTime}];
+  
+  }
+  else{
+    var arrs = (<any[]>this.roomMetaData.playTimes).filter(x=>x.userId==this.currentUserId);
+    if(arrs.length==0){
+      //没找到
+      (<any[]>this.roomMetaData.playTimes).push({userId:this.currentUserId,val:this.plyr?.currentTime})
+    }
+    else{
+  
+      var index = (<any[]>this.roomMetaData.playTimes).findIndex(x=>x.userId==this.currentUserId);
+  if (index > -1) {
+    (<any[]>this.roomMetaData.playTimes).splice(index, 1);
+  }
+      (<any[]>this.roomMetaData.playTimes).push({userId:this.currentUserId,val:this.plyr?.currentTime})
+    }
+  }
+  
+  return this.updateRoomMetaData();
+  
+  }
+
+
+
   ngOnInit() {
    
   }
@@ -258,7 +369,7 @@ return this.updateRoomMetaData();
     }
   }
    initPlayerEvent() {
-    
+    // this.plyr?.forward
     //拖动
     this.plyr!.on('seeked', (event) => {
       const instance = event.detail.plyr;
@@ -269,6 +380,7 @@ return this.updateRoomMetaData();
 //时间变动
     this.plyr!.on('timeupdate', (event) => {
       const instance = event.detail.plyr;
+      
       
       console.log(`[timeupdate]buffed:${instance.buffered},currentTime:${instance.currentTime},duation:${instance.duration}`);
     });
@@ -301,12 +413,20 @@ this.plyr!.on('pause', (event) => {
   console.log(`[pause]buffed:${instance.buffered},currentTime:${instance.currentTime},duation:${instance.duration}`);
 });
 
+setInterval(()=>{
+  this.uploadPlayTime().subscribe(x=>{
 
+
+      });
+},1000);
   }
 
   pushData(data:string){
-    const msg = this.state.encoder.encode(data);
-    this.currentRoom!.localParticipant.publishData(msg, DataPacket_Kind.RELIABLE);
+    const url = this.serverHttp+"/Room/SendData"; // 替换为你的API URL
+    return this.http.post(url,{
+      roomName:this.roomId,
+      Data:data
+    });
   }
 
 	renderParticipant(participant: Participant, remove: boolean = false) {
@@ -506,6 +626,7 @@ async ConnectRoom(){
     .on(RoomEvent.RoomMetadataChanged, (metadata) => {
       console.log('new metadata for room', metadata);
       this.roomMetaData = JSON.parse( metadata);
+      this.remoteSeek = this.getDuiFangTime();
     })
     .on(RoomEvent.MediaDevicesChanged, this.handleDevicesChanged)
     .on(RoomEvent.AudioPlaybackStatusChanged, () => {
