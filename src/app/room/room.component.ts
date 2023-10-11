@@ -1,7 +1,7 @@
 import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, empty } from 'rxjs';
 import Hls from 'hls.js';
 import {   ConnectionQuality,
   ConnectionState,
@@ -67,7 +67,9 @@ export class RoomComponent implements OnInit {
   wssServerAddress:string;
   startTime:number | undefined;
   currentRoom:Room | undefined;
+  isCanPlay:boolean=false;
   remoteIsShow:boolean = false;
+  currentJinDu:number = 0;
   isMuted:boolean = false;//是否静音
   playerUrl:string = 'https://cdn.plyr.io/static/demo/View_From_A_Blue_Moon_Trailer-576p.mp4';
   state = {
@@ -146,9 +148,10 @@ testFunc2(){
   // console.log("testFunc2:"+roomPlayStatus);
 
 
-  var time = this.getDuiFangTime();
+  this.plyr!.currentTime = 123;
+  // var time = this.getDuiFangTime();
 
-  console.log(time);
+  // console.log(time);
   // this.plyr!.currentTime = 500;
   // this.pushData("1231231").subscribe(x=>{
 
@@ -163,8 +166,54 @@ setCurrentPlayTime(time:number){
   this.plyr!.currentTime = time;
 }
 
-EventHanld(eventType :PlayerEvent,args:any){
+SendEvent(eventType :PlayerEvent,args:any){
+  var pack ={}
+  console.log(eventType,args);
+  switch(eventType)
+  {
+    case PlayerEvent.SyncProgress:
+      this.plyr?.stop();
+      var time = args;
+      pack ={type:PlayerEvent.SyncProgress,args:time}
+      this.pushData(JSON.stringify(pack)).subscribe(x=>{
 
+      });
+    break;
+
+    case PlayerEvent.paly:
+      pack ={type:PlayerEvent.paly,args:null}
+      this.pushData(JSON.stringify(pack)).subscribe(x=>{
+
+      });
+    break;
+
+    case PlayerEvent.stop:
+      pack ={type:PlayerEvent.stop,args:null}
+      this.pushData(JSON.stringify(pack)).subscribe(x=>{
+
+      });
+    break;
+
+    case PlayerEvent.seeked:
+      this.plyr?.stop();
+      var time = args;
+      pack ={type:PlayerEvent.seeked,args:time}
+      this.pushData(JSON.stringify(pack)).subscribe(x=>{
+
+      });
+    break;
+
+    case PlayerEvent.switchUrl:
+      this.plyr?.stop();
+      var url = args;
+      pack ={type:PlayerEvent.switchUrl,args:url}
+      this.pushData(JSON.stringify(pack)).subscribe(x=>{
+
+      });
+    break;
+  }
+}
+EventHanld(eventType :PlayerEvent,args:any){
   switch(eventType)
   {
     case PlayerEvent.SyncProgress:
@@ -175,25 +224,32 @@ EventHanld(eventType :PlayerEvent,args:any){
 
     case PlayerEvent.paly:
       this.plyr?.play();
+      // if(this.getIsPlayStatus()){
+      //   this.plyr?.play();
+      // }else{
+      //   this.plyr?.stop();
+      // }
     break;
 
     case PlayerEvent.stop:
+    
       this.plyr?.stop();
     break;
 
     case PlayerEvent.seeked:
-      var time = args;
-      this.setCurrentPlayTime(time);
-      this.plyr?.stop();
+   
+      // var time = args;
+      // this.setCurrentPlayTime(time);
+      // this.plyr?.stop();
     break;
 
     case PlayerEvent.switchUrl:
+   
       var url = args;
       this.loadVideoData(url);
       this.plyr?.stop();
     break;
   }
-
 }
 
 
@@ -228,6 +284,9 @@ getIsPlayStatus(){
 }
 
 uploadIsPlayStatus(stauts :boolean){
+  if(stauts== this.getIsPlayStatus()){
+    return empty();
+  }
 var isNotExister = this.roomMetaData?.uploadStatus==undefined || this.roomMetaData.uploadStatus.length==0;
 
 if(isNotExister){
@@ -333,7 +392,7 @@ uploadPlayTime(){
     //https://baidu.sd-play.com/20230905/uyAUfYk5/index.m3u8
     var video = <HTMLVideoElement>document.querySelector('#player');
     const source = url;
-    var defaultOptions:any={quality:{}, controls:['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'pip', 'airplay', 'fullscreen']};
+    var defaultOptions:any={quality:{}, controls:[ 'play','progress', 'current-time', 'mute', 'volume',  'airplay', 'fullscreen']};
     if (Hls.isSupported()) {
       // For more Hls.js options, see https://github.com/dailymotion/hls.js
       const hls = new Hls();
@@ -373,52 +432,70 @@ uploadPlayTime(){
     //拖动
     this.plyr!.on('seeked', (event) => {
       const instance = event.detail.plyr;
-      
+      // this.plyr?.stop();
       console.log(`[seeked]seeking:${instance.seeking},currentTime:${instance.currentTime},duation:${instance.duration}`);
     });
 
+
+    // this.plyr!.on('seeking', (event) => {
+    //   const instance = event.detail.plyr;
+    //   console.log("[seeking]",event);
+    //   // this.plyr?.stop();
+    //   // this.SendEvent(PlayerEvent.seeked,this.plyr?.currentTime);
+    //   console.log(`[seeking]seeking:${instance.seeking},currentTime:${instance.currentTime},duation:${instance.duration}`);
+    // });
+
 //时间变动
-    this.plyr!.on('timeupdate', (event) => {
-      const instance = event.detail.plyr;
-      
-      
-      console.log(`[timeupdate]buffed:${instance.buffered},currentTime:${instance.currentTime},duation:${instance.duration}`);
-    });
+    // this.plyr!.on('timeupdate', (event) => {
+    //   const instance = event.detail.plyr;
+    //   // if(instance.currentTime-this.currentJinDu>2||this.currentJinDu-instance.currentTime>2){
+    //   //   console.log("手动拖动");
+    //   // }
+
+    //   this.currentJinDu = instance.currentTime;
+    //   console.log(`[timeupdate]buffed:${instance.buffered},currentTime:${instance.currentTime},duation:${instance.duration}`);
+    // });
 
 //播放
     this.plyr!.on('play', (event) => {
       const instance = event.detail.plyr;
-      
+      this.SendEvent(PlayerEvent.paly,null);
+     
       console.log(`[play]buffed:${instance.buffered},currentTime:${instance.currentTime},duation:${instance.duration}`);
     });
+//暂停
+this.plyr!.on('pause', (event) => {
+  // const instance = event.detail.plyr;
+  // this.SendEvent(PlayerEvent.stop,null);
+  // console.log(`[pause]buffed:${instance.buffered},currentTime:${instance.currentTime},duation:${instance.duration}`);
+});
 
 //缓冲中
 this.plyr!.on('waiting', (event) => {
   const instance = event.detail.plyr;
-  
+  this.isCanPlay = false;
+  // this.uploadIsPlayStatus(false).subscribe(x=>{});
+  // this.SendEvent(PlayerEvent.stop,null);
   console.log(`[waiting]buffed:${instance.buffered},currentTime:${instance.currentTime},duation:${instance.duration}`);
 });
 
 //可播放
 this.plyr!.on('canplay', (event) => {
   const instance = event.detail.plyr;
-  
+  this.isCanPlay = true;
   console.log(`[canplay]buffed:${instance.buffered},currentTime:${instance.currentTime},duation:${instance.duration}`);
 });
 
-//暂停
-this.plyr!.on('pause', (event) => {
-  const instance = event.detail.plyr;
-  
-  console.log(`[pause]buffed:${instance.buffered},currentTime:${instance.currentTime},duation:${instance.duration}`);
-});
 
 setInterval(()=>{
+  if(this.isCanPlay){
+    this.uploadIsPlayStatus(true).subscribe(x=>{});
+  }
   this.uploadPlayTime().subscribe(x=>{
-
-
       });
 },1000);
+
+
   }
 
   pushData(data:string){
@@ -534,8 +611,9 @@ async mutedAudio(){
 
 async handleData(msg: Uint8Array, participant?: RemoteParticipant) {
   const str = this.state.decoder.decode(msg);
-  
-  console.log(str);
+  debugger;
+  var json = JSON.parse(str);
+  this.EventHanld(json.type,json.args);
 }
 
 async ConnectRoom(){
@@ -595,9 +673,9 @@ async ConnectRoom(){
       that.renderParticipant(participant, true);
     })
     .on(RoomEvent.DataReceived, (msg: Uint8Array, participant?: RemoteParticipant) =>{
-      const str = that.state.decoder.decode(msg);
-      
-      console.log(str);
+      const str = this.state.decoder.decode(msg);
+      var json = JSON.parse(str);
+      this.EventHanld(json.type,json.args);
     })
     .on(RoomEvent.Disconnected, this.handleRoomDisconnect)
     .on(RoomEvent.Reconnecting, () => console.log('Reconnecting to room'))
@@ -624,7 +702,7 @@ async ConnectRoom(){
    
     })
     .on(RoomEvent.RoomMetadataChanged, (metadata) => {
-      console.log('new metadata for room', metadata);
+      // console.log('new metadata for room', metadata);
       this.roomMetaData = JSON.parse( metadata);
       this.remoteSeek = this.getDuiFangTime();
     })
